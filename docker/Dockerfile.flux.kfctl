@@ -10,5 +10,36 @@ RUN /sbin/apk add --update curl && \
   echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' >> /etc/nsswitch.conf && \
   rm -rf glibc.apk glibc-bin.apk /var/cache/apk/*
 
+# Install kfctl
 COPY --from=melioconsulting/kfctl:latest /usr/local/bin/kfctl /usr/local/bin/
 
+# Install awscli
+RUN curl -sL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip \
+    && unzip awscliv2.zip \
+    && aws/install \
+    && rm -rf \
+        awscliv2.zip \
+        aws \
+        /usr/local/aws-cli/v2/*/dist/aws_completer \
+        /usr/local/aws-cli/v2/*/dist/awscli/data/ac.index \
+        /usr/local/aws-cli/v2/*/dist/awscli/examples
+
+# Install Go
+ENV GO_VERSION 1.14.4
+ENV GOPATH /go
+ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
+
+ADD https://dl.google.com/go/go"$GO_VERSION".linux-amd64.tar.gz /usr/local/go.tar.gz
+RUN tar -C /usr/local -xzf /usr/local/go.tar.gz && \
+    rm -f /usr/local/go.tar.gz && \
+    mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+
+# Install aws-iam-authenticator
+RUN go get -u -v sigs.k8s.io/aws-iam-authenticator/cmd/aws-iam-authenticator
+
+# Install eksctl
+ENV EKSCTL_VERSION 0.19.0
+
+RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/download/$EKSCTL_VERSION/eksctl_Linux_amd64.tar.gz" | tar xz -C /tmp
+RUN mv /tmp/eksctl /usr/local/bin/eksctl
+RUN chmod +x /usr/local/bin/eksctl
